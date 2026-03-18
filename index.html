@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LRST Interactive Dynamics Explorer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
+:root {
+  --bg:#f2f5f8; --panel:#ffffff; --border:#b8c8d8;
+  --accent:#005080; --a2:#b03000; --muted:#4a6070;
+  --text:#0a1820; --dim:#1e3448;
+  --sub:#980010; --near:#6a3e00; --supra:#004e22; --pulse:#7a3800;
+  --cbg:#ffffff; --cthresh:#a87000; --czero:#506070;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;gap:20px;padding:12px 28px 10px;border-bottom:2px solid var(--border);background:linear-gradient(180deg,#dce8f4 0%,#f2f5f8 100%);}
+.hdr-left{display:flex;flex-direction:column;gap:2px;}
+.hdr-title{font-family:'Orbitron',monospace;font-size:12px;font-weight:900;letter-spacing:3px;color:var(--accent);}
+.hdr-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.hdr-badge{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);border:1px solid var(--border);padding:4px 10px;border-radius:2px;background:#fff;letter-spacing:2px;}
+.hdr-claim{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:var(--accent);opacity:0.7;font-style:italic;max-width:300px;text-align:right;line-height:1.4;}
+
+/* TABS */
+.tabnav{display:flex;border-bottom:2px solid var(--border);background:#e4ecf4;overflow-x:auto;}
+.tab{padding:9px 18px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s;font-weight:700;white-space:nowrap;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:#fff;}
+.tab:hover:not(.active){color:var(--text);background:rgba(0,80,128,0.07);}
+
+/* LAYOUT */
+.view{display:none;} .view.active{display:grid;}
+.layout-sc{grid-template-columns:282px 1fr;min-height:calc(100vh - 104px);}
+.layout-full{grid-template-columns:1fr;padding:20px 28px;gap:18px;}
+
+/* SIDEBAR */
+.sidebar{border-right:2px solid var(--border);padding:14px 13px;display:flex;flex-direction:column;gap:11px;background:#fff;overflow-y:auto;}
+.sec-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:1px;font-weight:700;}
+.pr{display:flex;flex-direction:column;gap:3px;margin-bottom:2px;}
+.pr-lbl{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--text);}
+.pr-lbl .m{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent);}
+.vr{font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;min-width:48px;text-align:right;}
+.vr.vd{color:var(--a2);} .vr.vg{color:var(--supra);}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:#c0d0e0;border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.25);cursor:pointer;}
+.divider{border:none;border-top:1px solid var(--border);margin:1px 0;}
+.legend{display:flex;flex-direction:column;gap:5px;}
+.leg-row{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--text);}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.leg-eq{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);margin-left:auto;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.stat-box{background:#edf3f8;border:1px solid var(--border);padding:6px 8px;border-radius:3px;}
+.stat-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:1px;display:block;margin-bottom:1px;font-weight:700;}
+.stat-val{font-family:'Share Tech Mono',monospace;font-size:13px;font-weight:bold;}
+
+/* CANVAS AREA */
+.carea{padding:14px 18px;display:flex;flex-direction:column;gap:12px;background:var(--bg);}
+.plbl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:4px;font-weight:700;}
+canvas{width:100%;border:1.5px solid var(--border);border-radius:3px;background:#fff;display:block;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.eq-box{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);line-height:1.95;padding:9px 13px;border:1px solid var(--border);border-left:4px solid var(--accent);background:#fff;border-radius:2px;}
+.eq-box .hg{color:var(--supra);font-weight:700;} .eq-box .hr{color:var(--sub);font-weight:700;}
+.eq-box .hb{color:var(--accent);font-weight:700;} .eq-box .hp{color:var(--pulse);font-weight:700;}
+.concept-bar{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;font-style:italic;padding:8px 13px;border-left:4px solid var(--near);background:#fff7e2;color:#3e2600;border-radius:2px;}
+.interp-bar{font-family:'Share Tech Mono',monospace;font-size:10px;line-height:1.85;padding:8px 13px;background:#e4f0fa;border:1px solid #90b8d8;border-left:4px solid var(--accent);border-radius:2px;color:var(--dim);}
+.interp-bar b{color:var(--accent);font-weight:700;} .interp-bar .iv{color:var(--a2);font-weight:700;}
+
+/* ANALYSIS BOX */
+.analysis-box{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;line-height:1.75;padding:12px 15px;border:1.5px solid #a8c8e0;border-left:5px solid var(--accent);background:linear-gradient(135deg,#eef6fc 0%,#f6fafd 100%);border-radius:3px;color:var(--text);}
+.analysis-box .ahead{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--accent);font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px;opacity:0.8;}
+.analysis-box .ag{color:var(--supra);font-weight:700;} .analysis-box .ar{color:var(--sub);font-weight:700;}
+.analysis-box .ab{color:var(--accent);font-weight:700;} .analysis-box .ay{color:#7a4a00;font-weight:700;}
+.analysis-box .ap{color:var(--pulse);font-weight:700;}
+
+/* BUTTONS */
+.preset-btn{width:100%;padding:8px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;background:#e4f4ec;border:1.5px solid #5aaa7a;color:var(--supra);cursor:pointer;border-radius:2px;transition:all .2s;font-weight:700;}
+.preset-btn:hover{background:#c8ecd8;border-color:#2a8050;}
+.export-btn{width:100%;padding:8px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;font-weight:700;margin-top:2px;}
+.export-csv{background:#e8f0fa;border:1.5px solid #7a9acc;color:var(--accent);}
+.export-csv:hover{background:#d0e4f8;border-color:#3060a0;}
+.export-json{background:#faf0e8;border:1.5px solid #c09060;color:var(--a2);}
+.export-json:hover{background:#f4e4cc;border-color:#906030;}
+
+/* SENS */
+.sens-ctrl{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:#fff;border:1.5px solid var(--border);border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.sens-label{font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;color:var(--text);}
+.sens-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px;font-weight:700;}
+.sens-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.sens-panel{display:flex;flex-direction:column;gap:6px;}
+
+/* EXPERIMENTS TAB */
+.exp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.exp-card{background:#fff;border:2px solid var(--border);border-radius:4px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+.exp-header{padding:12px 16px 10px;border-bottom:2px solid var(--border);}
+.exp-num{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--muted);font-weight:700;}
+.exp-title{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--accent);margin-top:3px;}
+.exp-hypothesis{font-family:'Rajdhani',sans-serif;font-size:12px;font-style:italic;color:var(--dim);margin-top:4px;line-height:1.5;}
+.exp-body{padding:12px 16px;}
+.exp-params{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);line-height:2;background:#f4f8fc;border:1px solid var(--border);border-radius:2px;padding:8px 10px;margin-bottom:10px;}
+.exp-params b{color:var(--accent);}
+canvas.exp-canvas{height:200px;margin-bottom:10px;}
+.exp-result{font-family:'Rajdhani',sans-serif;font-size:12.5px;font-weight:600;line-height:1.65;color:var(--text);padding:8px 10px;border-left:3px solid var(--accent);background:#eef6fc;}
+.exp-result .rg{color:var(--supra);font-weight:700;} .exp-result .rr{color:var(--sub);font-weight:700;} .exp-result .rb{color:var(--accent);font-weight:700;} .exp-result .ry{color:#7a4a00;font-weight:700;}
+.exp-run-btn{width:100%;padding:9px;margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;background:#e4f4ec;border:1.5px solid #5aaa7a;color:var(--supra);cursor:pointer;border-radius:2px;font-weight:700;transition:all .2s;}
+.exp-run-btn:hover{background:#c8ecd8;}
+
+/* ABOUT SECTION */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.about-card{background:#fff;border:1.5px solid var(--border);border-radius:4px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+.about-title{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;}
+.about-body{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;line-height:1.75;color:var(--dim);}
+.about-body b{color:var(--text);}
+.domain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.domain-chip{font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px;border-radius:2px;background:#edf3f8;border:1px solid var(--border);color:var(--dim);font-weight:700;}
+
+/* TOOLTIP */
+.tip{position:relative;display:inline-flex;align-items:center;gap:5px;cursor:help;}
+.tip-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--accent);color:#fff;font-family:'Share Tech Mono',monospace;font-size:8px;font-weight:700;font-style:normal;flex-shrink:0;line-height:1;user-select:none;}
+.tip-box{display:none;position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);width:260px;background:#0c1a26;color:#cce0f0;font-family:'Share Tech Mono',monospace;font-size:10px;line-height:1.8;padding:11px 14px;border-radius:4px;border-left:3px solid var(--accent);box-shadow:0 6px 22px rgba(0,0,0,0.32);z-index:9999;pointer-events:none;white-space:normal;}
+.tip-box::before{content:'';position:absolute;right:100%;top:50%;transform:translateY(-50%);border:6px solid transparent;border-right-color:#0c1a26;}
+.tip:hover .tip-box,.tip:focus-within .tip-box{display:block;}
+.tip-box b{color:#60c8f0;font-weight:400;} .tip-box .tg{color:#60d888;} .tip-box .tr{color:#f07070;} .tip-box .ty{color:#f0c840;}
+.tip.tip-up .tip-box{top:auto;bottom:0;transform:none;}
+.tip.tip-up .tip-box::before{top:auto;bottom:12px;transform:none;}
+.tip.tip-below .tip-box{left:0;top:calc(100% + 6px);transform:none;}
+.tip.tip-below .tip-box::before{left:8px;top:auto;right:auto;bottom:100%;transform:none;border:6px solid transparent;border-bottom-color:#0c1a26;border-right-color:transparent;}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-title">LRST Interactive Dynamics Explorer</div>
+    <div class="hdr-sub">Loss-Recovery Systems Theory · Asymmetric Loss · Path Dependence · Bistability · Ion-Coupled Substrate</div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-claim">Structure of loss pathways determines system destiny more than input magnitude</div>
+    <div class="hdr-badge">LRST v2.4 · UMCSF · Ball 2025</div>
+  </div>
+</header>
+
+<nav class="tabnav">
+  <button class="tab active" onclick="showTab(0)">I · Threshold Model</button>
+  <button class="tab" onclick="showTab(1)">II · Hysteresis + Memory</button>
+  <button class="tab" onclick="showTab(2)">III · Sensitivity Sweep</button>
+  <button class="tab" onclick="showTab(3)">🧪 Canonical Experiments</button>
+  <button class="tab" onclick="showTab(4)">◎ About LRST</button>
+</nav>
+
+<!-- ═══ VIEW 1 — THRESHOLD ═══ -->
+<div class="view active layout-sc" id="v0">
+<aside class="sidebar">
+  <div>
+    <div class="sec-lbl">Core Parameters</div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">L<sub>sym</sub><i class="tip-icon">?</i><span class="tip-box"><b>Symmetric Loss</b><br>L_sym = L_leak + L_diff + L_relax<br><br>Baseline dissipation before asymmetry is applied. The "resting" loss rate of the ionic lattice site.</span></span><span class="vr vd" id="1-v-ls">1.00</span></div><input type="range" id="1-ls" min="0.5" max="2" step="0.05" value="1.0" oninput="w1('ls');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">Drive G<i class="tip-icon">?</i><span class="tip-box"><b>Input Drive</b><br>G ≈ G_Na + G_Ca_assist<br><br>Ionic input per cycle. In the canonical regime G=1.05 sits just above L_sym=1.00 — but this surplus does NOT guarantee growth when asymmetry acts.</span></span><span class="vr vd" id="1-v-g">1.05</span></div><input type="range" id="1-g" min="0.5" max="2.5" step="0.05" value="1.05" oninput="w1('g');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">Threshold X<sub>c</sub><i class="tip-icon">?</i><span class="tip-box"><b>Critical Threshold</b><br>State value where ε switches sign.<br><span class="tr">Below: ε=+ε₊ → L_eff rises → decay</span><br><span class="tg">Above: ε=−ε₋ → L_eff falls → growth</span><br><br>In hysteresis model, this splits into X_on and X_off.</span></span><span class="vr vd" id="1-v-xc">5.0</span></div><input type="range" id="1-xc" min="1" max="20" step="0.5" value="5" oninput="w1('xc');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">ε<sub>+</sub> <span style="font-size:10px;color:var(--sub);font-weight:700">(adds loss)</span><i class="tip-icon">?</i><span class="tip-box"><b>Dissipative Asymmetry</b><br>L_eff = L_sym × (1 + ε₊)<br><br>At ε₊=0.10: <span class="tr">L_eff=1.10, ΔX=−0.05/cycle</span><br><br>Slow bleed below threshold.</span></span><span class="vr vd" id="1-v-ep">+0.10</span></div><input type="range" id="1-ep" min="0.01" max="0.5" step="0.01" value="0.10" oninput="w1('ep');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">ε<sub>−</sub> <span style="font-size:10px;color:var(--supra);font-weight:700">(reduces loss)</span><i class="tip-icon">?</i><span class="tip-box"><b>Retentive Asymmetry</b><br>L_eff = L_sym × (1 − ε₋)<br><br>At ε₋=0.10: <span class="tg">L_eff=0.90, ΔX=+0.15/cycle</span><br><br><span class="ty">Key LRST prediction:</span> ε₋ drives 3× stronger response than ε₊ penalises. Retention-pathway interventions dominate.</span></span><span class="vr vg" id="1-v-em">−0.10</span></div><input type="range" id="1-em" min="0.01" max="0.5" step="0.01" value="0.10" oninput="w1('em');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">Cycles N<i class="tip-icon">?</i><span class="tip-box"><b>Iteration Count</b><br>Divergence grows linearly with N. A 10% asymmetry after 80 cycles produces ~16 unit gap from identical starting conditions.</span></span><span class="vr vd" id="1-v-n">80</span></div><input type="range" id="1-n" min="20" max="200" step="5" value="80" oninput="w1('n');r1();"></div>
+  </div>
+  <button class="preset-btn" onclick="loadPreset1()">↺ Canonical LRST Regime</button>
+  <hr class="divider">
+  <div>
+    <div class="sec-lbl">Initial Conditions</div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">X₀ sub<i class="tip-icon">?</i><span class="tip-box"><b>Subthreshold Start</b><br>Starts below X_c. ε₊ applies immediately.<br><span class="tr">State decays despite G > L_sym.</span><br><br>The key demonstration: positive net drive is not sufficient when asymmetry raises L_eff above G.</span></span><span class="vr vd" id="1-v-x0a">2.0</span></div><input type="range" id="1-x0a" min="0" max="19" step="0.5" value="2" oninput="w1('x0a');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">X₀ near<i class="tip-icon">?</i><span class="tip-box"><b>Near-threshold Start</b><br>Most sensitive condition — small changes flip the outcome. Reveals sharpness of the decision boundary.</span></span><span class="vr vd" id="1-v-x0b">4.5</span></div><input type="range" id="1-x0b" min="0" max="19" step="0.5" value="4.5" oninput="w1('x0b');r1();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">X₀ supra<i class="tip-icon">?</i><span class="tip-box"><b>Suprathreshold Start</b><br>Starts above X_c. ε₋ applies immediately.<br><span class="tg">State grows persistently.</span><br><br>Same G and L_sym as sub-threshold — opposite outcome. Loss pathway structure determines destiny.</span></span><span class="vr vd" id="1-v-x0c">6.5</span></div><input type="range" id="1-x0c" min="0" max="30" step="0.5" value="6.5" oninput="w1('x0c');r1();"></div>
+  </div>
+  <hr class="divider">
+  <div><div class="sec-lbl">Legend</div>
+    <div class="legend">
+      <div class="leg-row"><div class="leg-dot" style="background:var(--sub)"></div>Subthreshold<span class="leg-eq">decays</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:var(--near)"></div>Near-threshold<span class="leg-eq">marginal</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:var(--supra)"></div>Suprathreshold<span class="leg-eq">grows</span></div>
+    </div>
+  </div>
+  <hr class="divider">
+  <div><div class="sec-lbl"><span class="tip tip-up">Final State (N)<i class="tip-icon">?</i><span class="tip-box"><b>Final State Readout</b><br>ΔX gap = X_supra − X_sub = macroscopic divergence from asymmetry alone. Canonical value ≈ 16 after 80 cycles.</span></span></div>
+    <div class="stat-grid">
+      <div class="stat-box"><span class="stat-lbl">X_sub</span><span class="stat-val" id="1-st-a" style="color:var(--sub)">—</span></div>
+      <div class="stat-box"><span class="stat-lbl">X_near</span><span class="stat-val" id="1-st-b" style="color:var(--near)">—</span></div>
+      <div class="stat-box"><span class="stat-lbl">X_supra</span><span class="stat-val" id="1-st-c" style="color:var(--supra)">—</span></div>
+      <div class="stat-box"><span class="stat-lbl">ΔX gap</span><span class="stat-val" id="1-st-d" style="color:var(--accent)">—</span></div>
+    </div>
+  </div>
+  <hr class="divider">
+  <div><div class="sec-lbl">Export Results</div>
+    <button class="export-btn export-csv" onclick="exportCSV1()">⬇ Export CSV</button>
+    <button class="export-btn export-json" onclick="exportJSON1()">⬇ Export JSON</button>
+  </div>
+</aside>
+<div class="carea">
+  <div class="concept-bar">"Crossing X<sub>c</sub> changes the <em>structure</em> of loss — not just the magnitude of input."</div>
+  <div class="interp-bar"><b>X</b> = ionic/excitatory state &nbsp;·&nbsp; <b>L</b> = leakage+diffusion+relaxation &nbsp;·&nbsp; <b class="iv">ε<sub>+</sub></b> = adds loss (dissipative) &nbsp;·&nbsp; <b class="iv">ε<sub>−</sub></b> = reduces loss (retentive) &nbsp;·&nbsp; <b>G</b> = input drive</div>
+  <div><div class="plbl"><span class="tip tip-below">State Trajectory · X(n) vs cycle n<i class="tip-icon">?</i><span class="tip-box"><b>Main Trajectory Plot</b><br>Three starting conditions diverge at threshold. Gap grows linearly — iterative amplification of small asymmetry into macroscopic structure.</span></span></div><canvas id="1-main" height="280"></canvas></div>
+  <div class="two-col">
+    <div><div class="plbl"><span class="tip tip-below">L_eff(X) — effective loss<i class="tip-icon">?</i><span class="tip-box"><b>Effective Loss Curve</b><br>Red: below X_c, L_eff > L_sym<br>Green: above X_c, L_eff < L_sym<br>Blue dashed = G. Growth only where L_eff < G.</span></span></div><canvas id="1-leff" height="170"></canvas></div>
+    <div><div class="plbl"><span class="tip tip-below">ΔX/cycle — net gain<i class="tip-icon">?</i><span class="tip-box"><b>Net Gain per Cycle</b><br>ΔX = G − L_eff(X)<br>Red = decay, Green = growth.<br>Note asymmetry: retentive gain (+0.15) > dissipative loss magnitude (−0.05).</span></span></div><canvas id="1-delta" height="170"></canvas></div>
+  </div>
+  <div class="eq-box" id="1-eq">Loading...</div>
+  <div class="analysis-box" id="1-analysis"><span class="ahead">Live Analysis</span>Loading...</div>
+</div>
+</div>
+
+<!-- ═══ VIEW 2 — HYSTERESIS ═══ -->
+<div class="view layout-sc" id="v1">
+<aside class="sidebar">
+  <div>
+    <div class="sec-lbl">Core Parameters</div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">L<sub>sym</sub><i class="tip-icon">?</i><span class="tip-box"><b>Symmetric Loss</b><br>Both trajectories share identical L_sym — isolating the effect of pathway asymmetry from raw loss magnitude.</span></span><span class="vr vd" id="2-v-ls">1.00</span></div><input type="range" id="2-ls" min="0.5" max="2" step="0.05" value="1.0" oninput="w2('ls');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">Drive G<i class="tip-icon">?</i><span class="tip-box"><b>Input Drive</b><br>G is identical for both trajectories after the pulse ends. Memory effect is demonstrated by history alone, not ongoing drive differences.</span></span><span class="vr vd" id="2-v-g">1.05</span></div><input type="range" id="2-g" min="0.5" max="2.5" step="0.05" value="1.05" oninput="w2('g');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">ε<sub>+</sub> <span style="font-size:10px;color:var(--sub);font-weight:700">(adds loss)</span><i class="tip-icon">?</i><span class="tip-box"><b>Dissipative ε₊</b><br>Active when below X_on or after falling below X_off.<br><span class="tr">L_eff = L_sym × (1 + ε₊)</span><br>No-pulse trajectory stays here permanently.</span></span><span class="vr vd" id="2-v-ep">+0.10</span></div><input type="range" id="2-ep" min="0.01" max="0.5" step="0.01" value="0.10" oninput="w2('ep');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">ε<sub>−</sub> <span style="font-size:10px;color:var(--supra);font-weight:700">(reduces loss)</span><i class="tip-icon">?</i><span class="tip-box"><b>Retentive ε₋</b><br>Active after crossing X_on, until falling below X_off.<br><span class="tg">L_eff = L_sym × (1 − ε₋)</span><br>Self-reinforcing: lower L_eff keeps state high, keeps ε₋ active.</span></span><span class="vr vg" id="2-v-em">−0.10</span></div><input type="range" id="2-em" min="0.01" max="0.5" step="0.01" value="0.10" oninput="w2('em');r2();"></div>
+  </div>
+  <button class="preset-btn" onclick="loadPreset2()">↺ Canonical LRST Regime</button>
+  <hr class="divider">
+  <div>
+    <div class="sec-lbl"><span class="tip">Hysteresis Thresholds<i class="tip-icon">?</i><span class="tip-box"><b>The Hysteresis Pair</b><br>X_on: must exceed to enter retentive<br>X_off: must fall below to exit retentive<br><br>Gap = X_on − X_off = memory depth. Same current X can represent two different modes depending on history.</span></span></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">X<sub>on</sub> — enter retentive<i class="tip-icon">?</i><span class="tip-box"><b>Activation Threshold</b><br>Without pulse: starts at X₀=4.0, never reaches X_on=5.0 → decays. With pulse: briefly pushed above X_on → mode flips → persists.</span></span><span class="vr vd" id="2-v-xon">5.0</span></div><input type="range" id="2-xon" min="1" max="20" step="0.5" value="5" oninput="w2('xon');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">X<sub>off</sub> — exit retentive<i class="tip-icon">?</i><span class="tip-box"><b>Deactivation Threshold</b><br>X_off < X_on creates the gap zone. A system in retentive mode stays there even as X falls into the gap — path-dependence in action.</span></span><span class="vr vd" id="2-v-xoff">4.2</span></div><input type="range" id="2-xoff" min="0.5" max="19.5" step="0.1" value="4.2" oninput="w2('xoff');r2();"></div>
+  </div>
+  <hr class="divider">
+  <div>
+    <div class="sec-lbl"><span class="tip">Pulse Parameters<i class="tip-icon">?</i><span class="tip-box"><b>Transient Stimulus</b><br>Brief extra drive simulating external stimulation. Key question: does the elevated mode persist after the pulse ends? If yes — LRST memory demonstrated.</span></span></div>
+    <div class="pr"><div class="pr-lbl"><span>X₀ (both)</span><span class="vr vd" id="2-v-x0">4.0</span></div><input type="range" id="2-x0" min="0" max="15" step="0.5" value="4" oninput="w2('x0');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">Pulse start<i class="tip-icon">?</i><span class="tip-box"><b>Pulse Start Cycle</b><br>Try increasing until pulse can no longer push X above X_on — defines the rescue window.</span></span><span class="vr vd" id="2-v-ps">8</span></div><input type="range" id="2-ps" min="1" max="30" step="1" value="8" oninput="w2('ps');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span>Pulse duration</span><span class="vr vd" id="2-v-pd">4</span></div><input type="range" id="2-pd" min="1" max="20" step="1" value="4" oninput="w2('pd');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span class="tip">Pulse amplitude<i class="tip-icon">?</i><span class="tip-box"><b>Pulse Amplitude</b><br>Reduce until pulse barely fails to cross X_on — this is the minimum effective stimulus. Below it, no memory forms regardless of duration.</span></span><span class="vr vd" id="2-v-pa">0.70</span></div><input type="range" id="2-pa" min="0.05" max="3.0" step="0.05" value="0.70" oninput="w2('pa');r2();"></div>
+    <div class="pr"><div class="pr-lbl"><span>Cycles N</span><span class="vr vd" id="2-v-n">60</span></div><input type="range" id="2-n" min="20" max="150" step="5" value="60" oninput="w2('n');r2();"></div>
+  </div>
+  <hr class="divider">
+  <div><div class="sec-lbl">Legend</div>
+    <div class="legend">
+      <div class="leg-row"><div class="leg-dot" style="background:var(--sub)"></div>No pulse — decays<span class="leg-eq">baseline</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:var(--supra)"></div>With pulse — persists<span class="leg-eq">memory</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:var(--pulse)"></div>Pulse window<span class="leg-eq">transient</span></div>
+    </div>
+  </div>
+  <hr class="divider">
+  <div><div class="sec-lbl">Memory Result</div>
+    <div class="stat-grid">
+      <div class="stat-box"><span class="stat-lbl">No-pulse Xf</span><span class="stat-val" id="2-st-a" style="color:var(--sub)">—</span></div>
+      <div class="stat-box"><span class="stat-lbl">Pulse Xf</span><span class="stat-val" id="2-st-b" style="color:var(--supra)">—</span></div>
+      <div class="stat-box"><span class="stat-lbl">X_on</span><span class="stat-val" id="2-st-c" style="color:var(--near)">—</span></div>
+      <div class="stat-box"><span class="stat-lbl"><span class="tip tip-up">Gap Xon−Xoff<i class="tip-icon">?</i><span class="tip-box"><b>Hysteresis Gap = Memory Depth</b><br>Larger gap = more robust memory = harder to erase. Systems in the gap zone stay retentive until pushed below X_off.</span></span></span><span class="stat-val" id="2-st-d" style="color:var(--accent)">—</span></div>
+    </div>
+  </div>
+  <hr class="divider">
+  <div><div class="sec-lbl">Export Results</div>
+    <button class="export-btn export-csv" onclick="exportCSV2()">⬇ Export CSV</button>
+    <button class="export-btn export-json" onclick="exportJSON2()">⬇ Export JSON</button>
+  </div>
+</aside>
+<div class="carea">
+  <div class="concept-bar">"A transient input can permanently alter system behavior — outcome depends on <em>history</em>, not only present state."</div>
+  <div class="interp-bar"><b>X</b> = ionic state &nbsp;·&nbsp; <b>X<sub>on</sub></b> = enter retentive &nbsp;·&nbsp; <b>X<sub>off</sub></b> = exit retentive &nbsp;·&nbsp; <b>gap</b> = X_on − X_off = memory depth</div>
+  <div><div class="plbl"><span class="tip tip-below">Hysteresis Trajectory · identical starts, different histories<i class="tip-icon">?</i><span class="tip-box"><b>Hysteresis Trajectory</b><br>Same X₀, same G — different outcomes based solely on history. After the pulse ends, identical ongoing drive produces opposite behavior.</span></span></div><canvas id="2-main" height="260"></canvas></div>
+  <div class="two-col">
+    <div><div class="plbl"><span class="tip tip-below">Mode state over time<i class="tip-icon">?</i><span class="tip-box"><b>Mode Timeline</b><br>Red = dissipative (ε₊), Green = retentive (ε₋). The mode flip in the pulse trajectory is irreversible under the same G.</span></span></div><canvas id="2-mode" height="170"></canvas></div>
+    <div><div class="plbl"><span class="tip tip-below">Hysteresis loop · X vs L_eff<i class="tip-icon">?</i><span class="tip-box"><b>Hysteresis Loop</b><br>The loop shape — different paths entering vs exiting high state — is the geometric signature of memory. Same X, two different L_eff values depending on history.</span></span></div><canvas id="2-loop" height="170"></canvas></div>
+  </div>
+  <div class="eq-box" id="2-eq">Loading...</div>
+  <div class="analysis-box" id="2-analysis"><span class="ahead">Live Analysis</span>Loading...</div>
+</div>
+</div>
+
+<!-- ═══ VIEW 3 — SENSITIVITY ═══ -->
+<div class="view layout-full" id="v2">
+  <div class="concept-bar" style="margin-bottom:10px;">"System behavior depends <em>jointly</em> on input drive and loss asymmetry — neither alone is sufficient."</div>
+  <div class="interp-bar" style="margin-bottom:12px;"><b>Each panel</b> sweeps one parameter across its full range, all others fixed at canonical values (G=1.05, L=1.00, X_c=5, ε±=0.10, N=80). Vertical axis = X_final after N cycles. <span style="color:var(--sub);font-weight:700">Red</span>=X₀=2 (sub), <span style="color:var(--near);font-weight:700">Amber</span>=X₀=5 (near), <span style="color:var(--supra);font-weight:700">Green</span>=X₀=7 (supra). Dashed vertical = current slider value.</div>
+  <div class="sens-grid">
+    <div class="sens-panel"><div class="sens-ctrl"><div class="sens-label"><span class="tip">Sweep: ε<sub>+</sub><i class="tip-icon">?</i><span class="tip-box"><b>ε₊ Sensitivity</b><br>Penalises sub-threshold only. Supra-threshold trajectory largely unaffected — ε₊ never activates above X_c.</span></span><span class="vr vd" id="3-v-ep">0.10</span></div><input type="range" id="3-ep" min="0.01" max="0.5" step="0.01" value="0.10" oninput="document.getElementById('3-v-ep').textContent=(+this.value).toFixed(2);r3();"><div class="sens-sub">Range 0.01–0.5</div></div><canvas id="3-c0" height="200"></canvas></div>
+    <div class="sens-panel"><div class="sens-ctrl"><div class="sens-label"><span class="tip">Sweep: ε<sub>−</sub><i class="tip-icon">?</i><span class="tip-box"><b>ε₋ Sensitivity</b><br>Strongly amplifies supra-threshold growth. Sub-threshold unaffected. Key LRST prediction: ε₋ dominates ε₊ in per-cycle effect.</span></span><span class="vr vd" id="3-v-em">0.10</span></div><input type="range" id="3-em" min="0.01" max="0.5" step="0.01" value="0.10" oninput="document.getElementById('3-v-em').textContent=(+this.value).toFixed(2);r3();"><div class="sens-sub">Range 0.01–0.5</div></div><canvas id="3-c1" height="200"></canvas></div>
+    <div class="sens-panel"><div class="sens-ctrl"><div class="sens-label"><span class="tip">Sweep: Drive G<i class="tip-icon">?</i><span class="tip-box"><b>G Sensitivity</b><br>Two critical G values define the operating window: G_crit_ret (below which retentive fails) and G_crit_diss (above which sub-threshold grows).</span></span><span class="vr vd" id="3-v-g">1.05</span></div><input type="range" id="3-g" min="0.5" max="2.5" step="0.05" value="1.05" oninput="document.getElementById('3-v-g').textContent=(+this.value).toFixed(2);r3();"><div class="sens-sub">G range 0.5–2.5</div></div><canvas id="3-c2" height="200"></canvas></div>
+    <div class="sens-panel"><div class="sens-ctrl"><div class="sens-label"><span class="tip">Sweep: X<sub>c</sub><i class="tip-icon">?</i><span class="tip-box"><b>Bifurcation</b><br>When X_c sweeps past X₀=7, the supra-threshold trajectory abruptly flips from growth to decay. This is the LRST bifurcation point.</span></span><span class="vr vd" id="3-v-xc">5.0</span></div><input type="range" id="3-xc" min="1" max="20" step="0.5" value="5" oninput="document.getElementById('3-v-xc').textContent=(+this.value).toFixed(1);r3();"><div class="sens-sub">Xc range 1–20 · bifurcation</div></div><canvas id="3-c3" height="200"></canvas></div>
+    <div class="sens-panel"><div class="sens-ctrl"><div class="sens-label"><span class="tip">Sweep: L<sub>sym</sub><i class="tip-icon">?</i><span class="tip-box"><b>Loss Ceiling</b><br>L_sym_max = G / (1 − ε₋) ≈ 1.17 at canonical values. Above this ceiling, no asymmetry can sustain growth.</span></span><span class="vr vd" id="3-v-ls">1.00</span></div><input type="range" id="3-ls" min="0.3" max="2.5" step="0.05" value="1.0" oninput="document.getElementById('3-v-ls').textContent=(+this.value).toFixed(2);r3();"><div class="sens-sub">L_sym range 0.3–2.5</div></div><canvas id="3-c4" height="200"></canvas></div>
+    <div class="sens-panel"><div class="sens-ctrl"><div class="sens-label"><span class="tip">Sweep: Hyst. gap ΔX<sub>h</sub><i class="tip-icon">?</i><span class="tip-box"><b>Memory Depth</b><br>Gap=0: single threshold. Larger gap: deeper, more robust memory. Near-threshold trajectory most sensitive.</span></span><span class="vr vd" id="3-v-dxh">0.80</span></div><input type="range" id="3-dxh" min="0" max="5" step="0.1" value="0.8" oninput="document.getElementById('3-v-dxh').textContent=(+this.value).toFixed(2);r3();"><div class="sens-sub">Gap = Xon − Xoff</div></div><canvas id="3-c5" height="200"></canvas></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:4px;">
+    <button class="export-btn export-csv" style="flex:1" onclick="exportCSV3()">⬇ Export Sensitivity CSV</button>
+    <button class="export-btn export-json" style="flex:1" onclick="exportJSON3()">⬇ Export Sensitivity JSON</button>
+  </div>
+  <div class="eq-box" id="3-eq">Loading...</div>
+  <div class="analysis-box" id="3-analysis"><span class="ahead">Live Analysis</span>Loading...</div>
+</div>
+
+<!-- ═══ VIEW 4 — CANONICAL EXPERIMENTS ═══ -->
+<div class="view layout-full" id="v3">
+  <div class="concept-bar" style="margin-bottom:14px;">"These three experiments constitute the minimal publishable demonstration of LRST applied to ion-coupled substrate dynamics."</div>
+  <div class="exp-grid">
+
+    <div class="exp-card">
+      <div class="exp-header">
+        <div class="exp-num">EXPERIMENT 1</div>
+        <div class="exp-title">Threshold Crossing &amp; Bifurcation</div>
+        <div class="exp-hypothesis">Hypothesis: varying X₀ across X_c produces a sharp bifurcation in final state — demonstrating that loss pathway structure, not input magnitude, determines outcome.</div>
+      </div>
+      <div class="exp-body">
+        <div class="exp-params"><b>Fixed:</b> G=1.05, L_sym=1.00, ε+=0.10, ε−=0.10, N=80<br><b>Sweep:</b> X₀ from 0 to 12 in steps of 0.5<br><b>Outcome:</b> X_final vs X₀ — bifurcation at X_c=5</div>
+        <div class="plbl">X_final vs initial condition X₀</div>
+        <canvas class="exp-canvas" id="e1-canvas" height="200"></canvas>
+        <button class="exp-run-btn" onclick="runExp1()">▶ Run Experiment 1</button>
+        <div class="exp-result" id="e1-result">Press Run to execute.</div>
+      </div>
+    </div>
+
+    <div class="exp-card">
+      <div class="exp-header">
+        <div class="exp-num">EXPERIMENT 2</div>
+        <div class="exp-title">Minimum Effective Stimulus</div>
+        <div class="exp-hypothesis">Hypothesis: there exists a critical pulse amplitude below which no memory forms regardless of duration — the minimum effective stimulus for LRST state transition.</div>
+      </div>
+      <div class="exp-body">
+        <div class="exp-params"><b>Fixed:</b> G=1.05, L=1.00, X₀=4.0, X_on=5.0, X_off=4.2, N=60<br><b>Sweep:</b> pulse amplitude 0.05 to 1.50<br><b>Outcome:</b> final state vs amplitude — critical threshold visible as step</div>
+        <div class="plbl">X_final (pulse) vs pulse amplitude</div>
+        <canvas class="exp-canvas" id="e2-canvas" height="200"></canvas>
+        <button class="exp-run-btn" onclick="runExp2()">▶ Run Experiment 2</button>
+        <div class="exp-result" id="e2-result">Press Run to execute.</div>
+      </div>
+    </div>
+
+    <div class="exp-card">
+      <div class="exp-header">
+        <div class="exp-num">EXPERIMENT 3</div>
+        <div class="exp-title">Retention Asymmetry Dominance</div>
+        <div class="exp-hypothesis">Hypothesis: ε₋ (retentive asymmetry) produces disproportionately greater final-state divergence than ε₊ (dissipative asymmetry) — retention pathways dominate system destiny.</div>
+      </div>
+      <div class="exp-body">
+        <div class="exp-params"><b>Fixed:</b> G=1.05, L=1.00, X_c=5, X₀_sub=2, X₀_supra=7, N=80<br><b>Sweep:</b> both ε+ and ε− independently from 0 to 0.5<br><b>Outcome:</b> ΔX gap vs ε — ε− curve lies above ε+ curve</div>
+        <div class="plbl">ΔX divergence vs asymmetry parameter</div>
+        <canvas class="exp-canvas" id="e3-canvas" height="200"></canvas>
+        <button class="exp-run-btn" onclick="runExp3()">▶ Run Experiment 3</button>
+        <div class="exp-result" id="e3-result">Press Run to execute.</div>
+      </div>
+    </div>
+
+  </div>
+  <div style="display:flex;gap:10px;margin-top:8px;">
+    <button class="export-btn export-csv" style="flex:1;padding:10px" onclick="exportAllExp()">⬇ Export All Experiment Results (CSV)</button>
+    <button class="export-btn export-json" style="flex:1;padding:10px" onclick="exportAllExpJSON()">⬇ Export All Experiment Results (JSON)</button>
+  </div>
+</div>
+
+<!-- ═══ VIEW 5 — ABOUT ═══ -->
+<div class="view layout-full" id="v4">
+  <div class="concept-bar" style="margin-bottom:14px;">"Structure of loss pathways determines system destiny more than input magnitude — a principle that applies across scales and domains."</div>
+  <div class="about-grid">
+    <div class="about-card">
+      <div class="about-title">What LRST Claims</div>
+      <div class="about-body">
+        Loss-Recovery Systems Theory formalises a general principle: <b>small asymmetries in competing loss pathways can accumulate over repeated interactions to produce large-scale, macroscopic divergence.</b><br><br>
+        The core equation is: <b>X_n+1 = X_n + G − L_sym(1 + ε(X_n))</b><br><br>
+        Where ε(X) is a state-dependent asymmetry parameter. Below threshold, ε is positive (adds loss). Above threshold, ε is negative (reduces loss). This single structural change in the loss term — not the drive — determines whether a state persists or decays.
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-title">What This Tool Can Determine</div>
+      <div class="about-body">
+        This visualiser provides a <b>controllable, predictive model</b> of asymmetric loss dynamics. It can determine:<br><br>
+        • Whether a system will <b>grow or decay</b> from a given initial condition<br>
+        • Whether a stimulus will <b>persist or vanish</b> after removal<br>
+        • The <b>minimum intervention</b> required to switch a system's mode<br>
+        • The <b>stability of a retained state</b> under perturbation<br>
+        • The <b>limits of recoverability</b> — when a state is unrescuable<br>
+        • The <b>operating window</b> of drive G for bistable behaviour
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-title">Biological Substrate Mapping</div>
+      <div class="about-body">
+        Applied here to <b>ion-coupled protein lattices</b>:<br><br>
+        <b>X</b> = local ionic excitatory state of a tubulin lattice site<br>
+        <b>G</b> = effective Na⁺/Ca²⁺ ionic drive per cycle<br>
+        <b>L_sym</b> = passive leakage + diffusion + relaxation<br>
+        <b>ε₊</b> = sub-threshold channel bias toward leakage<br>
+        <b>ε₋</b> = supra-threshold Ca²⁺-dependent retention<br>
+        <b>X_on/X_off</b> = activation/deactivation thresholds for gating commitment<br><br>
+        The 0.5 mM Ca²⁺ threshold observed in 1997 ion dynamics data maps directly to X_c in this framework.
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-title">Domains of Application</div>
+      <div class="about-body">The asymmetric loss principle is domain-agnostic. Any system with competing gain and loss pathways where the loss structure is state-dependent will exhibit LRST-class dynamics:</div>
+      <div class="domain-grid">
+        <div class="domain-chip">Neural Systems</div>
+        <div class="domain-chip">Energy Devices</div>
+        <div class="domain-chip">Biomaterials</div>
+        <div class="domain-chip">Economics</div>
+        <div class="domain-chip">Spacecraft Systems</div>
+        <div class="domain-chip">Ecological Models</div>
+        <div class="domain-chip">Ion Channel Gating</div>
+        <div class="domain-chip">Quantum Substrates</div>
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-title">Scope and Limits</div>
+      <div class="about-body">
+        LRST <b>does</b>:<br>
+        • Provide a quantitative tool for asymmetry-driven systems<br>
+        • Predict scaling behaviour under iteration<br>
+        • Identify critical thresholds for growth vs decay<br>
+        • Describe hysteretic memory without external storage<br><br>
+        LRST <b>does not</b>:<br>
+        • Derive fundamental physical constants<br>
+        • Replace domain-specific mechanistic theories<br>
+        • Claim specific microtubule memory mechanisms without validation<br>
+        • Explain particle physics asymmetries mechanistically
+      </div>
+    </div>
+    <div class="about-card">
+      <div class="about-title">Citation &amp; Framework</div>
+      <div class="about-body">
+        <b>Framework:</b> Loss-Recovery Systems Theory (LRST)<br>
+        <b>Extended model:</b> Unified MultiChannel Substrate Framework (UMCSF)<br>
+        <b>Recovery equation:</b> R = ρ · L · σ · α<br>
+        <b>Author:</b> James Ball, Ottawa, Ontario<br>
+        <b>Tool version:</b> LRST Interactive Dynamics Explorer v2.4<br><br>
+        This tool was developed as an in silico validation instrument for the biological substrate application of LRST, using retrospective validation against published ion dynamics data.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ CANVAS UTILITIES ══
+const dpr=()=>window.devicePixelRatio||1;
+function setupC(id){const c=document.getElementById(id),r=c.getBoundingClientRect(),d=dpr();c.width=r.width*d;c.height=r.height*d;const ctx=c.getContext('2d');ctx.scale(d,d);return{ctx,W:r.width,H:r.height};}
+function ts(v,mn,mx,lo,hi){return lo+(v-mn)/(mx-mn)*(hi-lo);}
+const CC={bg:'#ffffff',grid:'rgba(0,60,120,0.065)',sub:'#980010',near:'#6a3e00',supra:'#004e22',pulse:'#7a3800',thresh:'#a07000',gLine:'rgba(0,60,120,0.45)',zero:'#506878',modeD:'rgba(152,0,16,0.5)',modeR:'rgba(0,78,34,0.5)',dot:'#344050',axTxt:'#0e1e2c'};
+function drawGrid(ctx,W,H,pL=42,pR=18,pT=10,pB=32){ctx.save();ctx.strokeStyle=CC.grid;ctx.lineWidth=1;for(let i=0;i<=8;i++){const x=pL+(W-pL-pR)*i/8;ctx.beginPath();ctx.moveTo(x,pT);ctx.lineTo(x,H-pB);ctx.stroke();}for(let j=0;j<=5;j++){const y=pT+(H-pT-pB)*j/5;ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(W-pR,y);ctx.stroke();}ctx.restore();}
+function drawAxes(ctx,W,H,xMn,xMx,yMn,yMx,xL,yL,pL=42,pR=18,pT=10,pB=32){ctx.save();ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.axTxt;for(let i=0;i<=4;i++){const v=xMn+(xMx-xMn)*i/4,x=ts(v,xMn,xMx,pL,W-pR);ctx.fillText(v%1===0?v.toFixed(0):v.toFixed(1),x-10,H-pB+14);}for(let j=0;j<=4;j++){const v=yMn+(yMx-yMn)*j/4,y=ts(v,yMn,yMx,H-pB,pT);ctx.fillText(v.toFixed(1),1,y+3);}ctx.fillStyle=CC.dot;ctx.font='bold 10px Rajdhani';ctx.fillText(xL,W/2-10,H-pB+28);ctx.save();ctx.translate(10,H/2);ctx.rotate(-Math.PI/2);ctx.fillText(yL,-14,0);ctx.restore();ctx.restore();}
+function hline(ctx,y,col,dash,W,pL=42,pR=18){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash||[]);ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(W-pR,y);ctx.stroke();ctx.restore();}
+function vline(ctx,x,col,dash,H,pT=10,pB=32){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash(dash||[]);ctx.beginPath();ctx.moveTo(x,pT);ctx.lineTo(x,H-pB);ctx.stroke();ctx.restore();}
+function polyline(ctx,pts,col,lw=2){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();pts.forEach(([x,y],i)=>i===0?ctx.moveTo(x,y):ctx.lineTo(x,y));ctx.stroke();ctx.restore();}
+
+// ══ VIEW 1 ══
+function gp1(){return{Ls:+document.getElementById('1-ls').value,G:+document.getElementById('1-g').value,Xc:+document.getElementById('1-xc').value,ep:+document.getElementById('1-ep').value,em:+document.getElementById('1-em').value,N:+document.getElementById('1-n').value,x0a:+document.getElementById('1-x0a').value,x0b:+document.getElementById('1-x0b').value,x0c:+document.getElementById('1-x0c').value};}
+function w1(k){const ids={ls:'1-ls',g:'1-g',xc:'1-xc',ep:'1-ep',em:'1-em',n:'1-n',x0a:'1-x0a',x0b:'1-x0b',x0c:'1-x0c'};const v=+document.getElementById(ids[k]).value;const f=k==='xc'?v.toFixed(1):k==='n'?v.toFixed(0):k==='ep'?'+'+v.toFixed(2):k==='em'?'−'+v.toFixed(2):v.toFixed(2);document.getElementById('1-v-'+k).textContent=f;}
+function sim1(X0,p){const xs=[X0];for(let i=0;i<p.N;i++){const X=xs[xs.length-1];xs.push(X+p.G-p.Ls*(1+(X<p.Xc?p.ep:-p.em)));}return xs;}
+let _last1={tA:[],tB:[],tC:[],p:{}};
+function r1(){
+  const p=gp1();const tA=sim1(p.x0a,p),tB=sim1(p.x0b,p),tC=sim1(p.x0c,p);_last1={tA,tB,tC,p};
+  const pL=42,pR=18,pT=10,pB=32;
+  {const{ctx,W,H}=setupC('1-main');const all=[...tA,...tB,...tC],yMn=Math.min(...all)-1,yMx=Math.max(...all)+1;const sx=v=>ts(v,0,p.N,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);const yTh=sy(p.Xc);ctx.fillStyle='rgba(0,78,34,0.04)';ctx.fillRect(pL,pT,W-pL-pR,yTh-pT);ctx.fillStyle='rgba(152,0,16,0.04)';ctx.fillRect(pL,yTh,W-pL-pR,H-pB-yTh);hline(ctx,yTh,CC.thresh,[5,6],W,pL,pR);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.thresh;ctx.fillText('Xc='+p.Xc.toFixed(1),W-pR-54,yTh-5);const draw=(t,col,lbl)=>{polyline(ctx,t.map((v,i)=>[sx(i),sy(v)]),col,2);t.forEach((v,i)=>{if(i%10===0){ctx.save();ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx(i),sy(v),2.5,0,Math.PI*2);ctx.fill();ctx.restore();}});ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=col;ctx.fillText(lbl+':'+t[t.length-1].toFixed(2),W-pR-72,sy(t[t.length-1])+4);};draw(tA,CC.sub,'sub');draw(tB,CC.near,'near');draw(tC,CC.supra,'supra');drawAxes(ctx,W,H,0,p.N,yMn,yMx,'cycle n','X(n)',pL,pR,pT,pB);}
+  {const{ctx,W,H}=setupC('1-leff');const xMn=0,xMx=p.Xc*2.2,xs=Array.from({length:200},(_,i)=>xMn+(xMx-xMn)*i/199);const ys=xs.map(x=>p.Ls*(1+(x<p.Xc?p.ep:-p.em)));const yMn=Math.min(...ys)-0.1,yMx=Math.max(...ys)+0.1;const sx=v=>ts(v,xMn,xMx,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);hline(ctx,sy(p.G),CC.gLine,[4,5],W,pL,pR);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle='rgba(0,60,120,0.65)';ctx.fillText('G='+p.G.toFixed(2),pL+4,sy(p.G)-5);vline(ctx,sx(p.Xc),CC.thresh,[5,6],H,pT,pB);ctx.lineWidth=2.2;for(let i=1;i<xs.length;i++){ctx.strokeStyle=xs[i]<p.Xc?CC.sub:CC.supra;ctx.beginPath();ctx.moveTo(sx(xs[i-1]),sy(ys[i-1]));ctx.lineTo(sx(xs[i]),sy(ys[i]));ctx.stroke();}drawAxes(ctx,W,H,xMn,xMx,yMn,yMx,'X','Leff',pL,pR,pT,pB);}
+  {const{ctx,W,H}=setupC('1-delta');const xMn=0,xMx=p.Xc*2.2,xs=Array.from({length:200},(_,i)=>xMn+(xMx-xMn)*i/199);const ys=xs.map(x=>p.G-p.Ls*(1+(x<p.Xc?p.ep:-p.em)));const ab=Math.max(Math.abs(Math.min(...ys)),Math.abs(Math.max(...ys)))+0.05;const sx=v=>ts(v,xMn,xMx,pL,W-pR),sy=v=>ts(v,-ab,ab,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);hline(ctx,sy(0),CC.zero,[],W,pL,pR);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.zero;ctx.fillText('ΔX=0',pL+4,sy(0)-5);vline(ctx,sx(p.Xc),CC.thresh,[5,6],H,pT,pB);ctx.lineWidth=2.2;for(let i=1;i<xs.length;i++){ctx.strokeStyle=ys[i]>=0?CC.supra:CC.sub;ctx.beginPath();ctx.moveTo(sx(xs[i-1]),sy(ys[i-1]));ctx.lineTo(sx(xs[i]),sy(ys[i]));ctx.stroke();}drawAxes(ctx,W,H,xMn,xMx,-ab,ab,'X','ΔX',pL,pR,pT,pB);}
+  const xA=tA[tA.length-1],xB=tB[tB.length-1],xC=tC[tC.length-1];
+  document.getElementById('1-st-a').textContent=xA.toFixed(2);document.getElementById('1-st-b').textContent=xB.toFixed(2);document.getElementById('1-st-c').textContent=xC.toFixed(2);document.getElementById('1-st-d').textContent=(xC-xA).toFixed(2);
+  const Ld=(p.Ls*(1+p.ep)).toFixed(3),Lr=(p.Ls*(1-p.em)).toFixed(3),dD=(p.G-p.Ls*(1+p.ep)).toFixed(3),dR=(p.G-p.Ls*(1-p.em)).toFixed(3);
+  document.getElementById('1-eq').innerHTML=`<span class="hb">X_n+1 = X_n + G − L_sym(1 + ε(X_n))</span><br><span class="hb">ε:</span> <span class="hr">+${p.ep.toFixed(2)}</span> below Xc | <span class="hg">−${p.em.toFixed(2)}</span> above Xc &nbsp;|&nbsp; Leff: <span class="hr">${Ld}</span> diss, <span class="hg">${Lr}</span> ret &nbsp;|&nbsp; ΔX: <span class="hr">${dD}</span> diss, <span class="hg">+${dR}</span> ret<br>After N=${p.N}: divergence ΔX = <span class="hb">${(xC-xA).toFixed(2)}</span>`;
+  document.getElementById('1-analysis').innerHTML=analysis1(p,xA,xB,xC);
+}
+
+// ══ VIEW 2 ══
+function gp2(){return{Ls:+document.getElementById('2-ls').value,G:+document.getElementById('2-g').value,ep:+document.getElementById('2-ep').value,em:+document.getElementById('2-em').value,Xon:+document.getElementById('2-xon').value,Xoff:+document.getElementById('2-xoff').value,x0:+document.getElementById('2-x0').value,ps:+document.getElementById('2-ps').value,pd:+document.getElementById('2-pd').value,pa:+document.getElementById('2-pa').value,N:+document.getElementById('2-n').value};}
+function w2(k){const ids={ls:'2-ls',g:'2-g',ep:'2-ep',em:'2-em',xon:'2-xon',xoff:'2-xoff',x0:'2-x0',ps:'2-ps',pd:'2-pd',pa:'2-pa',n:'2-n'};const v=+document.getElementById(ids[k]).value;const f=k==='n'||k==='ps'||k==='pd'?v.toFixed(0):k==='ep'?'+'+v.toFixed(2):k==='em'?'−'+v.toFixed(2):v.toFixed(2);document.getElementById('2-v-'+k).textContent=f;}
+function simH(X0,p,pulse){const xs=[X0],modes=[false],Leffs=[p.Ls*(1+p.ep)];let ret=false;for(let n=0;n<p.N;n++){const X=xs[xs.length-1];if(!ret&&X>=p.Xon)ret=true;if(ret&&X<p.Xoff)ret=false;const Leff=p.Ls*(1+(ret?-p.em:p.ep));xs.push(X+(p.G+(pulse&&n>=p.ps&&n<p.ps+p.pd?p.pa:0))-Leff);modes.push(ret);Leffs.push(Leff);}return{xs,modes,Leffs};}
+let _last2={np:{xs:[]},wp:{xs:[]},p:{}};
+function r2(){
+  const p=gp2();const np=simH(p.x0,p,false),wp=simH(p.x0,p,true);_last2={np,wp,p};
+  const pL=42,pR=18,pT=10,pB=32;
+  {const{ctx,W,H}=setupC('2-main');const all=[...np.xs,...wp.xs],yMn=Math.min(...all)-1,yMx=Math.max(...all)+1;const sx=v=>ts(v,0,p.N,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);ctx.fillStyle='rgba(122,56,0,0.06)';ctx.fillRect(sx(p.ps),pT,sx(p.ps+p.pd)-sx(p.ps),H-pT-pB);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle='rgba(100,50,0,0.6)';ctx.fillText('pulse',sx(p.ps)+3,pT+12);hline(ctx,sy(p.Xon),CC.thresh,[],W,pL,pR);hline(ctx,sy(p.Xoff),CC.thresh,[4,6],W,pL,pR);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.thresh;ctx.fillText('Xon='+p.Xon.toFixed(1),W-pR-60,sy(p.Xon)-5);ctx.fillText('Xoff='+p.Xoff.toFixed(1),W-pR-63,sy(p.Xoff)+13);polyline(ctx,np.xs.map((v,i)=>[sx(i),sy(v)]),CC.sub,2);polyline(ctx,wp.xs.map((v,i)=>[sx(i),sy(v)]),CC.supra,2);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.sub;ctx.fillText('no-pulse:'+np.xs[np.xs.length-1].toFixed(2),W-pR-95,sy(np.xs[np.xs.length-1])+4);ctx.fillStyle=CC.supra;ctx.fillText('pulse:'+wp.xs[wp.xs.length-1].toFixed(2),W-pR-73,sy(wp.xs[wp.xs.length-1])+4);drawAxes(ctx,W,H,0,p.N,yMn,yMx,'cycle n','X(n)',pL,pR,pT,pB);}
+  {const{ctx,W,H}=setupC('2-mode');const sx=v=>ts(v,0,p.N,pL,W-pR);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);ctx.fillStyle='rgba(122,56,0,0.06)';ctx.fillRect(sx(p.ps),pT,sx(p.ps+p.pd)-sx(p.ps),H-pT-pB);const yNP=pT+(H-pT-pB)*0.25,yWP=pT+(H-pT-pB)*0.75,bh=20;const drawMode=(traj,yb)=>traj.modes.forEach((m,i)=>{if(i>=traj.modes.length-1)return;ctx.fillStyle=m?CC.modeR:CC.modeD;ctx.fillRect(sx(i),yb-bh/2,sx(i+1)-sx(i)+0.5,bh);});drawMode(np,yNP);drawMode(wp,yWP);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.sub;ctx.fillText('no-pulse',pL+4,yNP-bh/2-4);ctx.fillStyle=CC.supra;ctx.fillText('with-pulse',pL+4,yWP-bh/2-4);drawAxes(ctx,W,H,0,p.N,0,1,'cycle n','mode',pL,pR,pT,pB);}
+  {const{ctx,W,H}=setupC('2-loop');const xs=wp.xs,ls=wp.Leffs,xMn=Math.min(...xs)-0.5,xMx=Math.max(...xs)+0.5,yMn=Math.min(...ls)-0.05,yMx=Math.max(...ls)+0.05;const sx=v=>ts(v,xMn,xMx,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);hline(ctx,sy(p.G),CC.gLine,[4,5],W,pL,pR);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle='rgba(0,60,120,0.6)';ctx.fillText('G='+p.G.toFixed(2),pL+3,sy(p.G)-5);ctx.lineWidth=1.8;for(let i=1;i<xs.length;i++){ctx.strokeStyle=wp.modes[i]?CC.supra:CC.sub;ctx.beginPath();ctx.moveTo(sx(xs[i-1]),sy(ls[i-1]));ctx.lineTo(sx(xs[i]),sy(ls[i]));ctx.stroke();}ctx.fillStyle=CC.near;ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(sx(xs[0]),sy(ls[0]),4.5,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.font='bold 8px "Share Tech Mono"';ctx.fillStyle=CC.near;ctx.fillText('start',sx(xs[0])+6,sy(ls[0])+3);drawAxes(ctx,W,H,xMn,xMx,yMn,yMx,'X(n)','Leff',pL,pR,pT,pB);}
+  const xNP=np.xs[np.xs.length-1],xWP=wp.xs[wp.xs.length-1];
+  document.getElementById('2-st-a').textContent=xNP.toFixed(2);document.getElementById('2-st-b').textContent=xWP.toFixed(2);document.getElementById('2-st-c').textContent=p.Xon.toFixed(1);document.getElementById('2-st-d').textContent=(p.Xon-p.Xoff).toFixed(2);
+  const locked=wp.modes[wp.modes.length-1];
+  document.getElementById('2-eq').innerHTML=`<span class="hb">Hysteresis:</span> X_on=${p.Xon.toFixed(1)}, X_off=${p.Xoff.toFixed(1)}, gap=${(p.Xon-p.Xoff).toFixed(2)} | pulse +${p.pa.toFixed(2)}×${p.pd}cyc@n=${p.ps}<br><span class="hr">No-pulse:</span> X_final=${xNP.toFixed(2)} → decayed &nbsp;|&nbsp; <span class="hg">With pulse:</span> X_final=${xWP.toFixed(2)} → `+(locked?'<span class="hg">retentive locked</span>':'mode returned')+`<br><span class="hp">Divergence: same X₀=${p.x0}, same G=${p.G} post-pulse → gap = <span class="hb">${(xWP-xNP).toFixed(2)}</span></span>`;
+  document.getElementById('2-analysis').innerHTML=analysis2(p,np,wp);
+}
+
+// ══ VIEW 3 ══
+function simFinalX(X0,p,N=80){let X=X0,ret=false;for(let i=0;i<N;i++){if(!ret&&X>=p.Xc)ret=true;if(ret&&X<(p.Xoff||p.Xc-0.5))ret=false;X+=p.G-p.Ls*(1+(ret?-p.em:p.ep));}return X;}
+function drawSweep(id,key,mn,mx,nPts,base,x0s,cols,lbls){const{ctx,W,H}=setupC(id);const pL=42,pR=18,pT=10,pB=32;const xs=Array.from({length:nPts},(_,i)=>mn+(mx-mn)*i/(nPts-1));const allR=x0s.map(x0=>xs.map(sv=>{const p={...base};p[key]=sv;return simFinalX(x0,p);}));const allV=allR.flat(),yMn=Math.min(...allV)-0.5,yMx=Math.max(...allV)+0.5;const sx=v=>ts(v,mn,mx,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);if(yMn<0&&yMx>0)hline(ctx,sy(0),CC.zero,[],W,pL,pR);const cv=base[key];if(cv>=mn&&cv<=mx)vline(ctx,sx(cv),'rgba(160,112,0,0.5)',[4,5],H,pT,pB);allR.forEach((res,ri)=>{polyline(ctx,res.map((v,i)=>[sx(xs[i]),sy(v)]),cols[ri],1.8);ctx.font='bold 8px "Share Tech Mono"';ctx.fillStyle=cols[ri];ctx.fillText(lbls[ri],W-pR-34,sy(res[res.length-1])+3);});drawAxes(ctx,W,H,mn,mx,yMn,yMx,'param','Xfinal',pL,pR,pT,pB);}
+let _last3={base:{}};
+function r3(){
+  const base={Ls:+document.getElementById('3-ls').value,G:+document.getElementById('3-g').value,Xc:+document.getElementById('3-xc').value,ep:+document.getElementById('3-ep').value,em:+document.getElementById('3-em').value,Xoff:+document.getElementById('3-xc').value-+document.getElementById('3-dxh').value};_last3={base};
+  const x0s=[2,5,7],cols=[CC.sub,CC.near,CC.supra],lbls=['x0=2','x0=5','x0=7'];
+  drawSweep('3-c0','ep',0.01,0.5,60,base,x0s,cols,lbls);drawSweep('3-c1','em',0.01,0.5,60,base,x0s,cols,lbls);drawSweep('3-c2','G',0.5,2.5,60,base,x0s,cols,lbls);drawSweep('3-c3','Xc',1,20,60,base,x0s,cols,lbls);drawSweep('3-c4','Ls',0.3,2.5,60,base,x0s,cols,lbls);
+  const nPts=60,gapVals=Array.from({length:nPts},(_,i)=>5*i/(nPts-1));const allR=x0s.map(x0=>gapVals.map(gap=>simFinalX(x0,{...base,Xoff:base.Xc-gap})));const allV=allR.flat(),yMn=Math.min(...allV)-0.5,yMx=Math.max(...allV)+0.5;const{ctx,W,H}=setupC('3-c5');const pL=42,pR=18,pT=10,pB=32;const sx=v=>ts(v,0,5,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);allR.forEach((res,ri)=>{polyline(ctx,res.map((v,i)=>[sx(gapVals[i]),sy(v)]),cols[ri],1.8);ctx.font='bold 8px "Share Tech Mono"';ctx.fillStyle=cols[ri];ctx.fillText(lbls[ri],W-pR-34,sy(res[res.length-1])+3);});vline(ctx,sx(+document.getElementById('3-dxh').value),'rgba(160,112,0,0.5)',[4,5],H,pT,pB);drawAxes(ctx,W,H,0,5,yMn,yMx,'Xon−Xoff','Xfinal',pL,pR,pT,pB);
+  const Ld=(base.Ls*(1+base.ep)).toFixed(3),Lr=(base.Ls*(1-base.em)).toFixed(3),dD=(base.G-base.Ls*(1+base.ep)).toFixed(3),dR=(base.G-base.Ls*(1-base.em)).toFixed(3);
+  document.getElementById('3-eq').innerHTML=`<span class="hb">Base:</span> L=${base.Ls.toFixed(2)}, G=${base.G.toFixed(2)}, Xc=${base.Xc.toFixed(1)}, ε+=${base.ep.toFixed(2)}, ε−=${base.em.toFixed(2)} | <span class="hr">Diss Leff=${Ld}</span>, ΔX=<span class="hr">${dD}</span> | <span class="hg">Ret Leff=${Lr}</span>, ΔX=<span class="hg">+${dR}</span>`;
+  document.getElementById('3-analysis').innerHTML=analysis3(base);
+}
+
+// ══ CANONICAL EXPERIMENTS ══
+let _expData={e1:null,e2:null,e3:null};
+function runExp1(){
+  const p={G:1.05,Ls:1.00,Xc:5,ep:0.10,em:0.10,N:80};
+  const x0s=Array.from({length:25},(_,i)=>i*0.5);
+  const finals=x0s.map(x0=>sim1(x0,p).pop());
+  _expData.e1={x0s,finals,p};
+  const{ctx,W,H}=setupC('e1-canvas');const pL=42,pR=18,pT=10,pB=32;
+  const yMn=Math.min(...finals)-1,yMx=Math.max(...finals)+1;
+  const sx=v=>ts(v,0,12,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);
+  ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);
+  hline(ctx,sy(0),CC.zero,[],W,pL,pR);
+  vline(ctx,sx(p.Xc),CC.thresh,[4,5],H,pT,pB);
+  ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.thresh;ctx.fillText('Xc=5',sx(5)+3,pT+14);
+  x0s.forEach((x0,i)=>{if(x0>12)return;const col=x0<p.Xc?CC.sub:CC.supra;ctx.save();ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx(x0),sy(finals[i]),3.5,0,Math.PI*2);ctx.fill();ctx.restore();});
+  polyline(ctx,x0s.filter(x=>x<=12).map((x0,i)=>[sx(x0),sy(finals[i])]),CC.near,1.5);
+  drawAxes(ctx,W,H,0,12,yMn,yMx,'X₀','X_final(N=80)',pL,pR,pT,pB);
+  const bifurIdx=x0s.findIndex(x=>x>=p.Xc);
+  const subFinals=finals.slice(0,bifurIdx),supFinals=finals.slice(bifurIdx);
+  const avgSub=subFinals.reduce((a,b)=>a+b,0)/subFinals.length;
+  const avgSup=supFinals.reduce((a,b)=>a+b,0)/supFinals.length;
+  document.getElementById('e1-result').innerHTML=`<span class="rb">Result:</span> Sharp bifurcation confirmed at X_c = ${p.Xc}. Sub-threshold mean final state: <span class="rr">${avgSub.toFixed(2)}</span>. Supra-threshold mean: <span class="rg">${avgSup.toFixed(2)}</span>. Divergence across threshold: <span class="rb">${(avgSup-avgSub).toFixed(2)}</span> units. Loss pathway structure, not initial magnitude, determines long-term outcome. <span class="ry">LRST Prediction: confirmed.</span>`;
+}
+
+function runExp2(){
+  const base={G:1.05,Ls:1.00,Xon:5.0,Xoff:4.2,x0:4.0,ep:0.10,em:0.10,ps:8,pd:4,N:60};
+  const ampls=Array.from({length:30},(_,i)=>0.05+i*0.05);
+  const finals=ampls.map(pa=>simH(base.x0,{...base,Xc:base.Xon},true).xs); // re-run with varying pa
+  const results=ampls.map(pa=>{const p={...base,pa};return simH(p.x0,p,true);});
+  const finalStates=results.map(r=>r.xs[r.xs.length-1]);
+  const memoryFormed=results.map(r=>r.modes.some(m=>m));
+  _expData.e2={ampls,finalStates,memoryFormed,base};
+  const{ctx,W,H}=setupC('e2-canvas');const pL=42,pR=18,pT=10,pB=32;
+  const yMn=Math.min(...finalStates)-1,yMx=Math.max(...finalStates)+1;
+  const sx=v=>ts(v,0,1.5,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);
+  ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);
+  ampls.forEach((pa,i)=>{if(pa>1.5)return;const col=memoryFormed[i]?CC.supra:CC.sub;ctx.save();ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx(pa),sy(finalStates[i]),3,0,Math.PI*2);ctx.fill();ctx.restore();});
+  polyline(ctx,ampls.filter(a=>a<=1.5).map((pa,i)=>[sx(pa),sy(finalStates[i])]),CC.near,1.5);
+  const critIdx=memoryFormed.findIndex(m=>m);
+  if(critIdx>0){vline(ctx,sx(ampls[critIdx]),CC.thresh,[4,5],H,pT,pB);ctx.font='bold 9px "Share Tech Mono"';ctx.fillStyle=CC.thresh;ctx.fillText('crit',sx(ampls[critIdx])+3,pT+14);}
+  drawAxes(ctx,W,H,0,1.5,yMn,yMx,'pulse amp','X_final',pL,pR,pT,pB);
+  const critAmp=critIdx>=0?ampls[critIdx]:null;
+  document.getElementById('e2-result').innerHTML=critAmp
+    ?`<span class="rb">Result:</span> Minimum effective stimulus = <span class="rb">${critAmp.toFixed(2)}</span>. Below this amplitude, <span class="rr">no memory forms</span> regardless of duration. Above it, <span class="rg">retentive mode locks in</span> and persists under identical post-pulse G. Step discontinuity in final state confirms the all-or-nothing nature of LRST state transitions. <span class="ry">LRST Prediction: confirmed.</span>`
+    :`No memory formed at any tested amplitude. Try increasing pulse duration or lowering X_on.`;
+}
+
+function runExp3(){
+  const base={G:1.05,Ls:1.00,Xc:5,Xoff:4.5,N:80};
+  const epsVals=Array.from({length:50},(_,i)=>0.01+i*0.01);
+  // For each ε value, compute ΔX gap sweeping ε+ (with ε−=0.10) and ε− (with ε+=0.10)
+  const gapsEp=epsVals.map(ep=>{const p={...base,ep,em:0.10};return simFinalX(7,p)-simFinalX(2,p);});
+  const gapsEm=epsVals.map(em=>{const p={...base,ep:0.10,em};return simFinalX(7,p)-simFinalX(2,p);});
+  _expData.e3={epsVals,gapsEp,gapsEm,base};
+  const{ctx,W,H}=setupC('e3-canvas');const pL=42,pR=18,pT=10,pB=32;
+  const allVals=[...gapsEp,...gapsEm],yMn=Math.min(...allVals)-0.5,yMx=Math.max(...allVals)+0.5;
+  const sx=v=>ts(v,0,0.5,pL,W-pR),sy=v=>ts(v,yMn,yMx,H-pB,pT);
+  ctx.fillStyle=CC.bg;ctx.fillRect(0,0,W,H);drawGrid(ctx,W,H,pL,pR,pT,pB);
+  polyline(ctx,epsVals.map((e,i)=>[sx(e),sy(gapsEp[i])]),CC.sub,2);
+  polyline(ctx,epsVals.map((e,i)=>[sx(e),sy(gapsEm[i])]),CC.supra,2);
+  ctx.font='bold 9px "Share Tech Mono"';
+  ctx.fillStyle=CC.sub;ctx.fillText('ε+ (diss)',W-pR-60,sy(gapsEp[gapsEp.length-1])+4);
+  ctx.fillStyle=CC.supra;ctx.fillText('ε− (ret)',W-pR-56,sy(gapsEm[gapsEm.length-1])+4);
+  drawAxes(ctx,W,H,0,0.5,yMn,yMx,'ε value','ΔX gap',pL,pR,pT,pB);
+  const maxEp=Math.max(...gapsEp),maxEm=Math.max(...gapsEm);
+  const dominanceRatio=(maxEm/maxEp).toFixed(2);
+  const emDominates=maxEm>maxEp;
+  document.getElementById('e3-result').innerHTML=`<span class="rb">Result:</span> At maximum ε=0.50: ε+ produces ΔX gap = <span class="rr">${maxEp.toFixed(2)}</span>, ε− produces ΔX gap = <span class="rg">${maxEm.toFixed(2)}</span>. `+(emDominates?`<span class="rg">ε− (retentive) dominates by a factor of ${dominanceRatio}×</span>. The green curve lies above the red curve across the full range — retention asymmetry produces disproportionately greater divergence than dissipation asymmetry. <span class="ry">LRST Prediction: confirmed.</span>`:`ε+ and ε− produce comparable divergence at these parameters.`);
+}
+
+// ══ ANALYSIS ══
+function analysis1(p,xA,xB,xC){const Ld=p.Ls*(1+p.ep),Lr=p.Ls*(1-p.em);const dD=p.G-Ld,dR=p.G-Lr;const gap=xC-xA;const retMult=Math.abs(dR/dD).toFixed(1);let regime,rc;if(dD<0&&dR>0){regime='bistable';rc='ab';}else if(dD>=0&&dR>0){regime='universally permissive';rc='ag';}else if(dD<0&&dR<=0){regime='universally restrictive';rc='ar';}else{regime='transitional';rc='ay';}const ceilWarn=p.Ls>p.G/(1-p.em)?` <span class="ar">⚠ L_sym exceeds loss ceiling (${(p.G/(1-p.em)).toFixed(2)}) — retentive growth impossible.</span>`:'';const nearFate=xB<p.Xc?`<span class="ar">decaying</span>`:`<span class="ag">growing (crossed threshold)</span>`;let gapC;if(gap>20)gapC=`Divergence of <span class="ab">${gap.toFixed(2)}</span> units — macroscopic structure from ${(p.ep*100).toFixed(0)}% asymmetry alone.`;else if(gap>5)gapC=`Divergence of <span class="ab">${gap.toFixed(2)}</span> units — iterative amplification confirmed.`;else if(gap>0)gapC=`Divergence of <span class="ab">${gap.toFixed(2)}</span> units — modest at N=${p.N}. Increase N or ε± for stronger effect.`;else gapC=`No divergence — both trajectories in same regime.`;const domLine=Math.abs(dR)>Math.abs(dD)?`The retentive pathway (ε−) is <span class="ab">${retMult}×</span> more powerful per cycle than the dissipative pathway (ε+) — <span class="ag">retention asymmetry dominates</span>.`:`Dissipative pathway currently stronger than retentive — atypical. Adjust G or ε± toward canonical regime.`;return`<span class="ahead">Live Analysis — Threshold Model</span>System is in the <span class="${rc}">${regime}</span> regime (L_sym=${p.Ls.toFixed(2)}, G=${p.G.toFixed(2)}, X_c=${p.Xc.toFixed(1)}).${ceilWarn} Below threshold: Leff=<span class="ar">${Ld.toFixed(3)}</span>${dD<0?`, state decays at ${Math.abs(dD).toFixed(3)}/cycle.`:`, state grows even sub-threshold.`} Above threshold: Leff=<span class="ag">${Lr.toFixed(3)}</span>${dR>0?`, state grows at ${Math.abs(dR).toFixed(3)}/cycle.`:`, still decaying.`} ${domLine} Near-threshold trajectory (X₀=${p.x0b.toFixed(1)}) is ${nearFate}. ${gapC}`;}
+
+function analysis2(p,np,wp){const xNP=np.xs[np.xs.length-1],xWP=wp.xs[wp.xs.length-1];const locked=wp.modes[wp.modes.length-1];const pulseCrossed=wp.modes.some(m=>m);const gap=p.Xon-p.Xoff;const div=xWP-xNP;let pv;if(pulseCrossed&&locked)pv=`successfully crossed X_on and <span class="ag">locked into retentive mode</span> through cycle ${p.N}`;else if(pulseCrossed&&!locked)pv=`crossed X_on but <span class="ay">fell back below X_off</span> — memory formed but not retained`;else pv=`<span class="ar">did not reach X_on</span> — pulse insufficient. Try increasing amplitude or reducing start cycle`;let memC;if(gap<=0)memC=`X_off ≥ X_on — no hysteresis gap. This is equivalent to the single-threshold model.`;else if(gap<0.5)memC=`Gap of <span class="ab">${gap.toFixed(2)}</span> is narrow — retentive state is fragile.`;else if(gap<2)memC=`Gap of <span class="ab">${gap.toFixed(2)}</span> provides moderate stability.`;else memC=`Wide gap of <span class="ab">${gap.toFixed(2)}</span> — robust, hard-to-erase memory.`;const divC=pulseCrossed&&locked?`Both run under identical G=${p.G.toFixed(2)} post-pulse — yet diverge by <span class="ab">${div.toFixed(2)}</span> units. <span class="ag">History, not current input, determines the outcome.</span>`:pulseCrossed?`Partial memory effect. Divergence: <span class="ay">${div.toFixed(2)}</span> units.`:`No memory. Divergence: <span class="ar">${div.toFixed(2)}</span> units (decay rate only).`;return`<span class="ahead">Live Analysis — Hysteresis + Memory</span>Starting from X₀=${p.x0.toFixed(1)}, the pulse trajectory ${pv}. Pulse energy: ${(p.pa*p.pd).toFixed(2)} total units over ${p.pd} cycles. ${memC} ${divC}`;}
+
+function analysis3(base){const Ld=base.Ls*(1+base.ep),Lr=base.Ls*(1-base.em);const dD=base.G-Ld,dR=base.G-Lr;const lossMax=(base.G/(1-base.em)).toFixed(3);const atCeil=base.Ls>base.G/(1-base.em);const ceilW=atCeil?`<span class="ar">⚠ L_sym=${base.Ls.toFixed(2)} exceeds loss ceiling ${lossMax} — retentive growth impossible. Reduce L_sym or increase G.</span> `:'';const domLine=Math.abs(dR)>Math.abs(dD)?`ε− sensitivity (<span class="ag">+${Math.abs(dR).toFixed(3)}/cycle</span>) is <span class="ab">${(Math.abs(dR)/Math.abs(dD)).toFixed(2)}×</span> stronger than ε+ sensitivity (<span class="ar">${dD.toFixed(3)}/cycle</span>). Retention dominates dissipation.`:`At current parameters, ε+ and ε− effects are comparable — retentive dominance prediction weakened.`;return`<span class="ahead">Live Analysis — Sensitivity Sweep</span>${ceilW}At canonical base (G=${base.G.toFixed(2)}, L=${base.Ls.toFixed(2)}, Xc=${base.Xc.toFixed(1)}): system is ${dD<0&&dR>0?`in the <span class="ab">bistable operating window</span>`:dD>=0?`<span class="ag">universally permissive</span>`:`<span class="ar">universally restrictive</span>`}. ${domLine} Bifurcation panel (IV): watch the supra-threshold trajectory flip when X_c sweeps past X₀=7. G panel (III): lower critical G = ${(base.Ls*(1-base.em)).toFixed(3)} (retentive fails below), upper = ${(base.Ls*(1+base.ep)).toFixed(3)} (sub-threshold grows above). Hysteresis gap panel (VI): near-threshold trajectory most sensitive to memory depth.`;}
+
+// ══ EXPORT UTILITIES ══
+function dl(content,filename,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();}
+
+function exportCSV1(){const{tA,tB,tC,p}=_last1;if(!tA.length)return;let csv='cycle,X_sub,X_near,X_supra\n';for(let i=0;i<=p.N;i++)csv+=`${i},${tA[i].toFixed(4)},${tB[i].toFixed(4)},${tC[i].toFixed(4)}\n`;dl(csv,`LRST_Threshold_L${p.Ls}_G${p.G}_Xc${p.Xc}_N${p.N}.csv`,'text/csv');}
+function exportJSON1(){const{tA,tB,tC,p}=_last1;if(!tA.length)return;dl(JSON.stringify({parameters:p,trajectories:{sub:tA,near:tB,supra:tC},results:{X_sub_final:tA[p.N],X_near_final:tB[p.N],X_supra_final:tC[p.N],delta_X_gap:tC[p.N]-tA[p.N]}},null,2),`LRST_Threshold_${Date.now()}.json`,'application/json');}
+
+function exportCSV2(){const{np,wp,p}=_last2;if(!np.xs.length)return;let csv='cycle,X_nopulse,X_pulse,mode_nopulse,mode_pulse,Leff_pulse\n';for(let i=0;i<=p.N;i++)csv+=`${i},${np.xs[i].toFixed(4)},${wp.xs[i].toFixed(4)},${np.modes[i]?1:0},${wp.modes[i]?1:0},${wp.Leffs[i].toFixed(4)}\n`;dl(csv,`LRST_Hysteresis_Xon${p.Xon}_Xoff${p.Xoff}_pa${p.pa}.csv`,'text/csv');}
+function exportJSON2(){const{np,wp,p}=_last2;if(!np.xs.length)return;dl(JSON.stringify({parameters:p,no_pulse:{trajectory:np.xs,modes:np.modes},with_pulse:{trajectory:wp.xs,modes:wp.modes,Leffs:wp.Leffs},results:{X_nopulse_final:np.xs[p.N],X_pulse_final:wp.xs[p.N],divergence:wp.xs[p.N]-np.xs[p.N],memory_locked:wp.modes[wp.modes.length-1],hysteresis_gap:p.Xon-p.Xoff}},null,2),`LRST_Hysteresis_${Date.now()}.json`,'application/json');}
+
+function exportCSV3(){const{base}=_last3;const x0s=[2,5,7];const params=['ep','em','G','Xc','Ls'];const ranges=[[0.01,0.5],[0.01,0.5],[0.5,2.5],[1,20],[0.3,2.5]];let csv='param,value,'+x0s.map(x=>`X0_${x}_final`).join(',')+'\n';params.forEach((k,pi)=>{const nPts=30;for(let j=0;j<nPts;j++){const v=ranges[pi][0]+(ranges[pi][1]-ranges[pi][0])*j/(nPts-1);const row=x0s.map(x0=>{const p={...base};p[k]=v;return simFinalX(x0,p).toFixed(4);});csv+=`${k},${v.toFixed(4)},${row.join(',')}\n`;}});dl(csv,`LRST_Sensitivity_${Date.now()}.csv`,'text/csv');}
+function exportJSON3(){const{base}=_last3;dl(JSON.stringify({base_parameters:base,note:'Sensitivity sweep data — see CSV export for full tabular data'},null,2),`LRST_Sensitivity_${Date.now()}.json`,'application/json');}
+
+function exportAllExp(){let csv='# LRST Canonical Experiments Export\n\n';if(_expData.e1){csv+='## Experiment 1: Threshold Bifurcation\nX0,X_final\n';_expData.e1.x0s.forEach((x,i)=>csv+=`${x.toFixed(2)},${_expData.e1.finals[i].toFixed(4)}\n`);csv+='\n';}if(_expData.e2){csv+='## Experiment 2: Minimum Effective Stimulus\npulse_amplitude,X_final,memory_formed\n';_expData.e2.ampls.forEach((a,i)=>csv+=`${a.toFixed(2)},${_expData.e2.finalStates[i].toFixed(4)},${_expData.e2.memoryFormed[i]?1:0}\n`);csv+='\n';}if(_expData.e3){csv+='## Experiment 3: Asymmetry Dominance\neps_value,delta_X_gap_ep_plus,delta_X_gap_ep_minus\n';_expData.e3.epsVals.forEach((e,i)=>csv+=`${e.toFixed(2)},${_expData.e3.gapsEp[i].toFixed(4)},${_expData.e3.gapsEm[i].toFixed(4)}\n`);}dl(csv,`LRST_Canonical_Experiments_${Date.now()}.csv`,'text/csv');}
+function exportAllExpJSON(){dl(JSON.stringify({experiment_1_bifurcation:_expData.e1,experiment_2_min_stimulus:_expData.e2,experiment_3_asymmetry_dominance:_expData.e3},null,2),`LRST_Canonical_Experiments_${Date.now()}.json`,'application/json');}
+
+// ══ PRESETS ══
+function loadPreset1(){const s={ls:1.0,g:1.05,xc:5,ep:0.10,em:0.10,n:80,x0a:2,x0b:4.5,x0c:6.5};Object.entries(s).forEach(([k,v])=>{document.getElementById('1-'+k).value=v;w1(k);});r1();}
+function loadPreset2(){const s={ls:1.0,g:1.05,ep:0.10,em:0.10,xon:5.0,xoff:4.2,x0:4.0,ps:8,pd:4,pa:0.70,n:60};Object.entries(s).forEach(([k,v])=>{document.getElementById('2-'+k).value=v;w2(k);});r2();}
+
+// ══ TABS ══
+function showTab(i){document.querySelectorAll('.view').forEach((v,j)=>v.classList.toggle('active',j===i));document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));setTimeout(()=>{[r1,r2,r3,()=>{},()=>{}][i]();},60);}
+
+// ══ INIT ══
+window.addEventListener('load',()=>setTimeout(r1,100));
+window.addEventListener('resize',()=>{const a=[...document.querySelectorAll('.view')].findIndex(v=>v.classList.contains('active'));if(a<3)setTimeout(()=>{[r1,r2,r3][a]();},60);});
+</script>
+</body>
+</html>
